@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from config import Settings
 from models import ProviderStatus, ProviderUsage, UsageWindow
 from service import UsageService
 from ui.tray import TrayApplication
+from usage import format_local_time
 
 
 class TrayTooltipTests(unittest.TestCase):
@@ -25,3 +26,11 @@ class TrayTooltipTests(unittest.TestCase):
         tooltip = TrayApplication(service, Settings())._tooltip()
 
         self.assertIn("Month 60%", tooltip)
+
+    def test_monthly_time_uses_days_and_hours(self):
+        future = datetime.now().astimezone() + timedelta(days=2, hours=4, minutes=5)
+
+        text = format_local_time(future, "Renews")
+
+        self.assertIn("2d 4h", text)
+        self.assertNotIn("52h", text)
