@@ -40,10 +40,11 @@ class TrayApplication:
             # Keep the compact hover text useful: only show Codex when its live app-server refresh succeeded.
             if key == "codex" and (usage.stale or usage.status.value != "ok"):
                 continue
-            if usage.five_hour or usage.weekly:
+            if usage.five_hour or usage.weekly or usage.monthly:
                 five = f"5h {usage.five_hour.remaining_percent:.0f}%" if usage.five_hour else "5h —"
                 weekly = f"Week {usage.weekly.remaining_percent:.0f}%" if usage.weekly else "Week —"
-                lines.append(f"{label}: {five} · {weekly}" + (" (stale)" if usage.stale else ""))
+                monthly = f"Month {usage.monthly.remaining_percent:.0f}%" if usage.monthly else "Month —"
+                lines.append(f"{label}: {five} · {weekly} · {monthly}" + (" (stale)" if usage.stale else ""))
             else:
                 if key != "codex":
                     lines.append(f"{label}: unavailable")
