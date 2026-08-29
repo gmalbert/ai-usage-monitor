@@ -69,5 +69,14 @@ def format_local_time(value: datetime | None, verb: str = "Resets") -> str:
         return ""
     rendered = value.strftime("%b %d, %I:%M %p").replace(" 0", " ")
     delta = value - datetime.now().astimezone()
-    minutes = max(0, int(delta.total_seconds() // 60))
-    return f"{verb}: {rendered} · in {minutes // 60}h {minutes % 60}m"
+    total_minutes = max(0, int(delta.total_seconds() // 60))
+    days, remainder = divmod(total_minutes, 24 * 60)
+    hours, minutes = divmod(remainder, 60)
+    if days:
+        if hours:
+            relative = f"in {days}d {hours}h"
+        else:
+            relative = f"in {days}d"
+    else:
+        relative = f"in {hours}h {minutes}m" if hours else f"in {minutes}m"
+    return f"{verb}: {rendered} · {relative}"
