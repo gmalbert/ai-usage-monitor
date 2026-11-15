@@ -4,6 +4,7 @@ import AIUsageMonitorCore
 /// The menu-bar popover: quick glance at every provider plus actions.
 struct MenuBarContentView: View {
     let store: AppStore
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,7 +24,8 @@ struct MenuBarContentView: View {
                             usage: usage,
                             compact: true,
                             warningThreshold: store.settings.warningThreshold,
-                            criticalThreshold: store.settings.criticalThreshold
+                            criticalThreshold: store.settings.criticalThreshold,
+                            onSetKey: usage.provider == "OpenCode Go" ? { openSettings(to: .opencode) } : nil
                         )
                         if index < providers.count - 1 {
                             Divider().padding(.vertical, 2)
@@ -92,11 +94,11 @@ struct MenuBarContentView: View {
 
     private var footer: some View {
         HStack {
-            SettingsLink {
-                Text("Settings…")
-                    .font(.system(size: 12))
+            Button("Settings…") {
+                openSettings(to: .general)
             }
             .buttonStyle(.borderless)
+            .font(.system(size: 12))
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
             Spacer()
@@ -114,5 +116,14 @@ struct MenuBarContentView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
+    }
+
+    /// Activates the app and opens Settings on the requested tab. Menu-bar
+    /// apps are not active while the popover is open, and the Settings
+    /// window would otherwise stay in the background.
+    private func openSettings(to tab: AppStore.SettingsTab) {
+        store.selectSettingsTab(tab)
+        NSApp.activate(ignoringOtherApps: true)
+        openSettings()
     }
 }

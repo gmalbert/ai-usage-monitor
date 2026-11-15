@@ -10,6 +10,10 @@ import AIUsageMonitorCore
 @MainActor
 @Observable
 final class AppStore {
+    enum SettingsTab: Hashable {
+        case general, opencode, diagnostics
+    }
+
     private(set) var values: [String: ProviderUsage] = [:]
     private(set) var settings: AppSettings
     private(set) var isRefreshing = false
@@ -18,6 +22,12 @@ final class AppStore {
     /// "app-group" when the widget reads the shared container, "loopback"
     /// when the local HTTP fallback serves it instead.
     private(set) var snapshotChannel: String = "loopback"
+    /// The Settings tab to show when the window opens.
+    private(set) var settingsTab: SettingsTab = .general
+
+    func selectSettingsTab(_ tab: SettingsTab) {
+        settingsTab = tab
+    }
 
     private let service: UsageService
     private let keychain: KeychainStore

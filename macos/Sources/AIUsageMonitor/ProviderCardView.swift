@@ -66,6 +66,9 @@ struct ProviderCardView: View {
     let compact: Bool
     var warningThreshold: Double = 50
     var criticalThreshold: Double = 20
+    /// Shown for providers missing credentials (OpenCode Go), to jump
+    /// straight to the matching settings tab.
+    var onSetKey: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -84,10 +87,17 @@ struct ProviderCardView: View {
                 )
             }
             if usage.windows().isEmpty {
-                Text(usage.error ?? usage.status.label)
-                    .font(.system(size: compact ? 11 : 12))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(usage.error ?? usage.status.label)
+                        .font(.system(size: compact ? 11 : 12))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    if let onSetKey {
+                        Button("Set API Key…", action: onSetKey)
+                            .buttonStyle(.borderless)
+                            .font(.system(size: compact ? 11 : 12, weight: .medium))
+                    }
+                }
             }
             extras
         }

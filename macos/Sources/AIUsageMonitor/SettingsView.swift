@@ -6,13 +6,19 @@ struct SettingsView: View {
     let store: AppStore
 
     var body: some View {
-        TabView {
+        TabView(selection: Binding(
+            get: { store.settingsTab },
+            set: { store.selectSettingsTab($0) }
+        )) {
             GeneralSettingsTab(store: store)
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(AppStore.SettingsTab.general)
             OpenCodeKeySettingsTab(store: store)
                 .tabItem { Label("OpenCode Go", systemImage: "key") }
+                .tag(AppStore.SettingsTab.opencode)
             DiagnosticsSettingsTab(store: store)
                 .tabItem { Label("Diagnostics", systemImage: "stethoscope") }
+                .tag(AppStore.SettingsTab.diagnostics)
         }
         .frame(width: 460)
     }

@@ -5,6 +5,7 @@ import AIUsageMonitorCore
 /// and provider errors.
 struct DetailsView: View {
     let store: AppStore
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +23,8 @@ struct DetailsView: View {
                             usage: usage,
                             compact: false,
                             warningThreshold: store.settings.warningThreshold,
-                            criticalThreshold: store.settings.criticalThreshold
+                            criticalThreshold: store.settings.criticalThreshold,
+                            onSetKey: usage.provider == "OpenCode Go" ? { openSettingsFromDetails() } : nil
                         )
                         if usage.provider != store.orderedProviders.last?.provider {
                             Divider()
@@ -33,6 +35,12 @@ struct DetailsView: View {
             }
         }
         .frame(minWidth: 560, minHeight: 430)
+    }
+
+    private func openSettingsFromDetails() {
+        store.selectSettingsTab(.opencode)
+        NSApp.activate(ignoringOtherApps: true)
+        openSettings()
     }
 
     private var header: some View {
