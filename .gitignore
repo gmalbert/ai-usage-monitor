@@ -5,3 +5,10 @@ build/
 dist/
 *.spec
 *code-workspace
+.venv/
+.DS_Store
+macos/.build/
+macos/DerivedData/
+macos/*.xcodeproj
+xccuserdata/
+xcuserdata/
