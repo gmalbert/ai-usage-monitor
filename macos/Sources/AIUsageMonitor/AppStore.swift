@@ -140,17 +140,16 @@ final class AppStore {
     // MARK: - Settings
 
     func update(settings newSettings: AppSettings) {
+        let previousInterval = settings.refreshSeconds
         settings = newSettings
         SettingsStore.save(newSettings)
         if newSettings.showNotifications {
             Task { await notifier.ensureAuthorization() }
         }
-        if newSettings.refreshSeconds != loopIntervalSeconds {
+        if newSettings.refreshSeconds != previousInterval {
             startRefreshLoop()
         }
     }
-
-    private var loopIntervalSeconds: Int { settings.refreshSeconds }
 
     func toggleLaunchAtLogin(_ enabled: Bool) {
         do {

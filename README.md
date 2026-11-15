@@ -1,6 +1,6 @@
 # AI Usage Monitor
 
-AI Usage Monitor is a local Windows tray application and command-line utility for showing quota and credit usage from CommandCode, OpenCode Go, and Codex. It uses provider APIs or Codex's local app-server; it does not scrape browser interfaces and never copies secrets into its configuration or cache.
+AI Usage Monitor is a local tray application and command-line utility for showing quota and credit usage from CommandCode, OpenCode Go, and Codex. It runs on **Windows** (Python tray app) and **macOS** (native menu-bar app with a desktop widget). It uses provider APIs or Codex's local app-server; it does not scrape browser interfaces and never copies secrets into its configuration or cache.
 
 ## Features
 
@@ -110,6 +110,35 @@ py -m PyInstaller --noconsole --onefile --name "AI Usage Monitor" --collect-all 
 
 During development, omit `--noconsole` so errors stay visible.
 
+## macOS
+
+The Mac app is a native SwiftUI `MenuBarExtra` application with a matching
+WidgetKit desktop widget, sharing the same provider contracts as the Windows
+build. See [macos/README.md](macos/README.md) for build and widget setup.
+
+Quick start:
+
+```bash
+cd macos
+xcodegen generate --spec project.yml
+./build_macos.sh Debug --install
+open "/Applications/AI Usage Monitor.app"
+```
+
+What the Mac port adds:
+
+- Menu-bar gauge icon (lowest remaining percentage, colored by threshold).
+- Popover details: 5-hour, weekly, and monthly windows, reset countdowns,
+  credits, plans, stale/error states, and per-provider failures.
+- Desktop widgets: *AI Usage Gauge* (small) and *AI Providers* (medium).
+- Refresh at startup, on a timer, manually, and after system wake, with
+  serialized concurrent provider fetches.
+- OpenCode Go key storage in the macOS Keychain.
+- Launch-at-login via `SMAppService`, opt-in threshold notifications,
+  `~/Library/Caches` cache, and rotating logs in `~/Library/Logs`.
+- Core logic ported to Swift with fixture-based XCTest coverage
+  (`cd macos && swift test`); the Windows app is unchanged.
+
 ## Troubleshooting
 
 - **CommandCode unavailable:** sign in to CommandCode again and verify `%USERPROFILE%\.commandcode\auth.json` contains its normal `apiKey` field.
@@ -121,6 +150,4 @@ During development, omit `--noconsole` so errors stay visible.
 - **No desktop icon:** install the dependencies from `requirements.txt`, then run `py app.py --debug` to see local errors.
 - **`ModuleNotFoundError: pystray` in the EXE:** delete the old executable in `dist`, then rebuild with ` .\build_windows.ps1`. This means PyInstaller was run before `pystray` was installed in that same Python environment.
 
-macOS has the same provider/data model but requires a native SwiftUI `MenuBarExtra` shell for a production-quality menu-bar experience; this repository's runnable first release is the Windows/Python application.
-
-For continuing development on a Mac, see the [Mac development handoff](docs/MAC_DEVELOPMENT_HANDOFF.md) for the verified baseline, setup commands, implementation plan, and known portability gaps.
+The native macOS menu-bar and widget port is complete under [`macos/`](macos/README.md); this repository now ships runnable first releases for both Windows and macOS. For continuing Mac development details, see the [Mac development handoff](docs/MAC_DEVELOPMENT_HANDOFF.md).
