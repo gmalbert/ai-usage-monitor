@@ -5,3 +5,9 @@ build/
 dist/
 *.spec
 *code-workspace
+.venv/
+.build/
+DerivedData/
+xcuserdata/
+.DS_Store
+*.xcodeproj
