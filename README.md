@@ -122,3 +122,5 @@ During development, omit `--noconsole` so errors stay visible.
 - **`ModuleNotFoundError: pystray` in the EXE:** delete the old executable in `dist`, then rebuild with ` .\build_windows.ps1`. This means PyInstaller was run before `pystray` was installed in that same Python environment.
 
 macOS has the same provider/data model but requires a native SwiftUI `MenuBarExtra` shell for a production-quality menu-bar experience; this repository's runnable first release is the Windows/Python application.
+
+For continuing development on a Mac, see the [Mac development handoff](docs/MAC_DEVELOPMENT_HANDOFF.md) for the verified baseline, setup commands, implementation plan, and known portability gaps.
