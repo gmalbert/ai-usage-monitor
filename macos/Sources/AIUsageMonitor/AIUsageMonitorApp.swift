@@ -9,6 +9,7 @@ struct AIUsageMonitorApp: App {
             MenuBarContentView(store: store)
         } label: {
             GaugeLabelView(state: store.gaugeState, remaining: store.lowestRemaining)
+                .help(store.hoverText)
         }
         .menuBarExtraStyle(.window)
 

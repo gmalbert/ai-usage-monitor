@@ -87,6 +87,47 @@ final class AppStore {
 
     var valuesByKey: [String: ProviderUsage] { values }
 
+    /// The menu-bar hover text: every provider with per-window remaining
+    /// percentages and reset countdowns. Codex is omitted when its live
+    /// refresh did not succeed, mirroring the Windows tray tooltip.
+    var hoverText: String {
+        var lines: [String] = []
+        let updated = lastRefreshedAt.map { "updated \(relativeAge(since: $0))" } ?? "no data yet"
+        if let lowest = lowestRemaining {
+            lines.append("AI Usage Monitor — lowest \(Int(lowest.rounded()))% remaining · \(updated)")
+        } else {
+            lines.append("AI Usage Monitor — no live data · \(updated)")
+        }
+        for usage in orderedProviders {
+            if usage.provider == "Codex" && (usage.stale || usage.status != .ok) {
+                continue
+            }
+            if usage.windows().isEmpty {
+                lines.append("\(usage.provider): unavailable — \(usage.error ?? usage.status.label)")
+                continue
+            }
+            let label = usage.provider + (usage.plan.map { " — \($0)" } ?? "")
+            let parts = usage.windows().map { window -> String in
+                var text = "\(shortName(window.name)) \(Int(window.remainingPercent.rounded()))%"
+                if let resetAt = window.resetAt {
+                    text += " (\(relativeCountdown(to: resetAt)))"
+                }
+                return text
+            }
+            lines.append("\(label): " + parts.joined(separator: " · ") + (usage.stale ? " (stale)" : ""))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func shortName(_ windowName: String) -> String {
+        switch windowName {
+        case "5-hour": return "5h"
+        case "Weekly": return "Week"
+        case "Monthly": return "Month"
+        default: return windowName
+        }
+    }
+
     // MARK: - Refresh
 
     func refresh() async {
