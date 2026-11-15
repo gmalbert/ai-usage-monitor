@@ -93,11 +93,14 @@ struct SnapshotTimelineProvider: TimelineProvider {
         }
     }
 
-    /// Primary channel: the shared App Group container. Fallback: the host
-    /// app's loopback endpoint, used when the container is unavailable
-    /// (development builds without a provisioning profile).
+    /// Channel order: the shared App Group container, then the shared
+    /// Keychain item (works for development-signed builds without a
+    /// provisioning profile), then the host app's loopback endpoint.
     private func loadSnapshot() async -> UsageSnapshot? {
         if let snapshot = SnapshotStore.load() {
+            return snapshot
+        }
+        if let snapshot = SharedSnapshotStore.load() {
             return snapshot
         }
         var request = URLRequest(url: LocalSnapshotSync.url)

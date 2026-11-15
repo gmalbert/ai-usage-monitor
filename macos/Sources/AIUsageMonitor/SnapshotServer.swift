@@ -55,6 +55,19 @@ final class SnapshotServer: @unchecked Sendable {
         listener = nil
     }
 
+    /// True when another instance of this app is already serving the
+    /// loopback snapshot endpoint. Used as a single-instance guard.
+    static func isSiblingInstanceRunning() async -> Bool {
+        var request = URLRequest(url: LocalSnapshotSync.url)
+        request.timeoutInterval = 1.5
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              (try? JSONDecoder.withISODates().decode(UsageSnapshot.self, from: data)) != nil else {
+            return false
+        }
+        return true
+    }
+
     private func handle(_ connection: NWConnection) {
         connection.start(queue: queue)
         receiveRequest(connection, accumulated: Data())

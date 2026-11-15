@@ -173,15 +173,19 @@ private struct DiagnosticsSettingsTab: View {
                 Button("Reveal in Finder") { reveal(RotatingFileLog.shared.directory) }
             }
             LabeledContent("Widget data") {
-                if store.snapshotChannel == "app-group" {
+                switch store.snapshotChannel {
+                case "app-group":
                     Label("Shared container", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
-                } else {
+                case "keychain":
+                    Label("Shared Keychain item", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                default:
                     Label("Local fallback", systemImage: "arrow.triangle.2.circlepath")
                         .foregroundStyle(.orange)
                 }
             }
-            Text("The widget reads the shared App Group container when your build is provisioned with one; otherwise the app serves the snapshot over a localhost-only channel for the widget.")
+            Text("The widget reads the shared App Group container when your build is provisioned with one; otherwise the latest snapshot is shared through a Keychain item, with a localhost-only channel as a last resort.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }

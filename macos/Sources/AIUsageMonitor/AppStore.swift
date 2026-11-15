@@ -52,8 +52,18 @@ final class AppStore {
             CodexProvider(),
         ]
         self.service = service ?? UsageService(providers: providers)
-        SnapshotServer.shared.start()
-        Task { await self.refresh() }
+        Task {
+            // Single-instance guard: if a sibling instance is already
+            // serving the loopback endpoint, quit instead of stacking a
+            // second gauge in the menu bar.
+            if await SnapshotServer.isSiblingInstanceRunning() {
+                log.warn("Another AI Usage Monitor instance is already running; exiting")
+                NSApp.terminate(nil)
+                return
+            }
+            SnapshotServer.shared.start()
+            await self.refresh()
+        }
         startRefreshLoop()
         observeWake()
     }
@@ -148,14 +158,15 @@ final class AppStore {
 
     private func publishSnapshot() {
         let snapshot = UsageSnapshot.make(from: values, settings: settings)
-        // The loopback server is the fallback channel for machines where the
-        // App Group container is unavailable (no provisioning profile).
+        // Channel order: App Group container when the build is provisioned,
+        // then the shared Keychain item (works for development-signed
+        // builds without a provisioning profile), then the loopback server.
         SnapshotServer.shared.update(snapshot)
         do {
             try SnapshotStore.save(snapshot)
             snapshotChannel = "app-group"
         } catch {
-            snapshotChannel = "loopback"
+            snapshotChannel = SharedSnapshotStore.save(snapshot) ? "keychain" : "loopback"
         }
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetKinds.gauge)
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetKinds.providers)
