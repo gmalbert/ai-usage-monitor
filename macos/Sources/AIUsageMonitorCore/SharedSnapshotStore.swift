@@ -49,6 +49,20 @@ public enum SharedSnapshotStore {
         return try? JSONDecoder.withISODates().decode(UsageSnapshot.self, from: data)
     }
 
+    /// True when this binary is entitled to the shared keychain access
+    /// group. Both the writing app and the reading widget consult this so an
+    /// unprovisioned build cannot create or read the item — an unauthorized
+    /// read would trigger a keychain ACL consent prompt on every widget
+    /// refresh.
+    public static func selfEntitled() -> Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(task, "keychain-access-groups" as CFString, nil) else {
+            return false
+        }
+        guard let groups = value as? [String] else { return false }
+        return groups.contains(accessGroup)
+    }
+
     /// Removes the shared snapshot item.
     public static func delete() {
         let query: [String: Any] = [

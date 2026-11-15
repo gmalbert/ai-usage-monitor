@@ -166,7 +166,15 @@ final class AppStore {
             try SnapshotStore.save(snapshot)
             snapshotChannel = "app-group"
         } catch {
-            snapshotChannel = SharedSnapshotStore.save(snapshot) ? "keychain" : "loopback"
+            if SharedSnapshotStore.selfEntitled() {
+                snapshotChannel = SharedSnapshotStore.save(snapshot) ? "keychain" : "loopback"
+            } else {
+                // Without the entitlement the widget could only read this
+                // item through an ACL consent prompt; remove it so no
+                // prompt ever appears.
+                SharedSnapshotStore.delete()
+                snapshotChannel = "loopback"
+            }
         }
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetKinds.gauge)
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetKinds.providers)

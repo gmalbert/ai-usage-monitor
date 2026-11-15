@@ -100,7 +100,10 @@ struct SnapshotTimelineProvider: TimelineProvider {
         if let snapshot = SnapshotStore.load() {
             return snapshot
         }
-        if let snapshot = SharedSnapshotStore.load() {
+        // Only read the shared keychain item when this binary is entitled
+        // to its access group; an unauthorized read would trigger a keychain
+        // ACL consent prompt on every refresh.
+        if SharedSnapshotStore.selfEntitled(), let snapshot = SharedSnapshotStore.load() {
             return snapshot
         }
         var request = URLRequest(url: LocalSnapshotSync.url)
