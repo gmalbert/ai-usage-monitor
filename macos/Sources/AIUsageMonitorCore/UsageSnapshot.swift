@@ -129,6 +129,25 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
     }
 }
 
+/// Widget kinds shared by the host app (timeline reloads) and the extension.
+public enum WidgetKinds {
+    public static let gauge = "com.gmalbert.aiusagemonitor.gauge"
+    public static let providers = "com.gmalbert.aiusagemonitor.providers"
+}
+
+/// Loopback sync channel used when the App Group container is unavailable
+/// (for example, an unsigned local build with no provisioning profile).
+/// The host app serves the latest snapshot JSON on 127.0.0.1 only.
+public enum LocalSnapshotSync {
+    public static let host = "127.0.0.1"
+    public static let port: UInt16 = 52317
+    public static let path = "/usage-snapshot.json"
+
+    public static var url: URL {
+        URL(string: "http://\(host):\(port)\(path)")!
+    }
+}
+
 /// Reads and writes the snapshot inside the shared App Group container.
 public enum SnapshotStore {
     public static let appGroupID = "group.com.gmalbert.aiusagemonitor"

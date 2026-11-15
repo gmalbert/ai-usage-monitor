@@ -6,9 +6,8 @@ dist/
 *.spec
 *code-workspace
 .venv/
-.DS_Store
-macos/.build/
-macos/DerivedData/
-macos/*.xcodeproj
-xccuserdata/
+.build/
+DerivedData/
 xcuserdata/
+.DS_Store
+*.xcodeproj
