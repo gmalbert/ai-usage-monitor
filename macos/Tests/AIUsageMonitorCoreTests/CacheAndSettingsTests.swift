@@ -141,6 +141,28 @@ final class CacheAndSettingsTests: XCTestCase {
         }
     }
 
+    func testLocalCacheSnapshotStoreRoundTrip() throws {
+        let values = [
+            "commandcode": liveUsage(key: "commandcode", name: "CommandCode", fiveHour: 45),
+        ]
+        var snapshot = UsageSnapshot.make(from: values, settings: AppSettings())
+        snapshot.savedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapshot-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertTrue(LocalCacheSnapshotStore.save(snapshot, to: url))
+        let loaded = LocalCacheSnapshotStore.load(from: url)
+        XCTAssertEqual(loaded, snapshot)
+
+        try FileManager.default.removeItem(at: url)
+        XCTAssertNil(LocalCacheSnapshotStore.load(from: url))
+
+        // Corrupt data decodes to nil instead of crashing the widget.
+        try Data("not json".utf8).write(to: url)
+        XCTAssertNil(LocalCacheSnapshotStore.load(from: url))
+    }
+
     // MARK: - Keychain
 
     /// The round-trip test writes to the login keychain, so it is skipped

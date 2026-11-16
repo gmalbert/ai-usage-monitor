@@ -21,11 +21,11 @@ public enum LocalCacheSnapshotStore {
     }
 
     /// Publishes the latest snapshot from the unsandboxed host app.
-    public static func save(_ snapshot: UsageSnapshot) -> Bool {
+    public static func save(_ snapshot: UsageSnapshot, to path: URL? = nil) -> Bool {
         guard let data = try? JSONEncoder.withISODates().encode(snapshot) else {
             return false
         }
-        let url = path()
+        let url = path ?? Self.path()
         do {
             let directory = url.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -40,8 +40,8 @@ public enum LocalCacheSnapshotStore {
     /// Loads the snapshot written by the host app. Returns nil when this
     /// process is sandboxed (its home is not the real user home) or when the
     /// file does not exist.
-    public static func load() -> UsageSnapshot? {
-        guard let data = try? Data(contentsOf: path()) else { return nil }
+    public static func load(from path: URL? = nil) -> UsageSnapshot? {
+        guard let data = try? Data(contentsOf: path ?? Self.path()) else { return nil }
         return try? JSONDecoder.withISODates().decode(UsageSnapshot.self, from: data)
     }
 }

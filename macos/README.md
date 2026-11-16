@@ -43,9 +43,8 @@ xcodegen generate --spec project.yml   # once, and after adding files
 ./build_macos.sh Debug --install
 ```
 
-This builds the app and widget extension unsigned, then signs both bundles
-with your local development identity (or ad-hoc when none exists) and
-installs to `/Applications`. Then launch:
+This builds the app and widget extension and signs both bundles ad-hoc
+(no Apple ID needed), then installs to `/Applications`. Then launch:
 
 ```bash
 open "/Applications/AI Usage Monitor.app"
@@ -70,15 +69,23 @@ Clicking the widget opens the app's details window.
 
 ## Data channel used by the widget
 
-The widget reads the latest usage snapshot from the shared App Group
-container when your build is provisioned for one (Xcode automatic signing
-with an Apple ID selected in Xcode → Signing & Capabilities). On development
-builds without a provisioning profile — where macOS refuses group container
-access — the app additionally serves the identical snapshot on a
-**loopback-only** HTTP endpoint (`127.0.0.1:52317`), which the sandboxed
-widget fetches as a fallback. The endpoint carries usage percentages and
-reset times only; no credentials are ever included. Settings → Diagnostics
-shows which channel is active.
+The widget reads the latest usage snapshot through the first channel that
+works for the build (Settings → Diagnostics shows which one is active):
+
+1. **App Group container** — when the build is provisioned for one (build
+   with `--provisioned` and an Xcode account). The standard channel.
+2. **Shared Keychain item** — for development-signed (non-ad-hoc) builds
+   entitled to the shared keychain access group.
+3. **App cache file** — for local ad-hoc builds, which have no App Group
+   provisioning and whose keychain access groups securityd cannot validate.
+   The app publishes the snapshot as JSON in its own cache directory
+   (`~/Library/Caches/AIUsageMonitor/usage-snapshot.json`), where the
+   widget — whose sandbox entitlement is inert under ad-hoc signing —
+   reads it directly.
+4. **Loopback-only HTTP** (`127.0.0.1:52317`) — last resort.
+
+Every channel carries usage percentages and reset times only; no
+credentials are ever included.
 
 ## Development
 
@@ -117,13 +124,30 @@ Behavior notes beyond the Windows app:
   (`ChatGPT.app/Contents/Resources/codex-cli/bin/codex`).
 - Codex stale fallback preserves the session record's real observation time
   and shows its age.
+- The menu-bar gauge is drawn with CoreGraphics into a non-template
+  `NSImage`: SwiftUI shape strokes render monochrome inside `MenuBarExtra`
+  labels on recent macOS versions, but colored NSImages render correctly.
+- Keychain access is structured so no code path can surface a consent
+  dialog: key presence is checked with a metadata-only query, and the
+  stored key's data is only read after the user saves it with the running
+  build (the item is created with an any-application-trusted ACL, so
+  rebuilds never re-prompt). A key saved by an older build must be
+  re-entered once; Settings shows a hint when that is the case.
 
 ## Signing for distribution
 
-Local builds sign with a development identity or ad-hoc; the App Group works
-once Xcode provisions it. For sharing outside your Mac, re-sign with Developer
-ID and notarize, then keep the App Group entitlement so the widget container
-channel activates:
+`./build_macos.sh` signs **ad-hoc by default** — it works without an Apple
+ID and never touches the keychain, so it cannot trigger password or consent
+prompts. Pass `--provisioned` to attempt automatic signing with the Xcode
+account instead, which enables the App Group channel (requires an unlocked
+login keychain and an Apple ID signed into Xcode):
+
+```bash
+./build_macos.sh Debug --install --provisioned
+```
+
+For sharing outside your Mac, re-sign with Developer ID and notarize, then
+keep the App Group entitlement so the widget container channel activates:
 
 ```bash
 codesign --force --sign "Developer ID Application: …" \
