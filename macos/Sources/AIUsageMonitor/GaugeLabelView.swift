@@ -11,40 +11,36 @@ enum GaugePalette {
         default: Color(white: 0.45)
         }
     }
+
+    static func cgColor(for state: String) -> CGColor {
+        switch state {
+        case "normal": CGColor(red: 0x22 / 255, green: 0xA4 / 255, blue: 0x47 / 255, alpha: 1)
+        case "warning": CGColor(red: 0xE0 / 255, green: 0x9B / 255, blue: 0x16 / 255, alpha: 1)
+        case "critical": CGColor(red: 0xD4 / 255, green: 0x37 / 255, blue: 0x32 / 255, alpha: 1)
+        default: CGColor(red: 0.45, green: 0.45, blue: 0.45, alpha: 1)
+        }
+    }
 }
 
-/// The compact menu-bar gauge: a ring showing the lowest live remaining
-/// percentage, plus a text readout.
+/// The compact menu-bar gauge: a colored ring showing the lowest live
+/// remaining percentage, plus a text readout.
 struct GaugeLabelView: View {
     let state: String
     let remaining: Double?
 
     var body: some View {
         HStack(spacing: 3) {
-            gauge
-                .frame(width: 15, height: 15)
+            // SwiftUI shape strokes render monochrome in the menu bar on
+            // recent macOS versions; a non-template NSImage keeps its
+            // colors, so the ring is drawn through GaugeIconRenderer.
+            Image(nsImage: GaugeIconRenderer.image(state: state, remaining: remaining))
+                .frame(width: 16, height: 16)
             Text(percentText)
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .monospacedDigit()
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
-    }
-
-    private var gauge: some View {
-        ZStack {
-            Circle()
-                .stroke(.quaternary, lineWidth: 2.4)
-            if let remaining {
-                Circle()
-                    .trim(from: 0, to: max(0.01, remaining / 100))
-                    .stroke(GaugePalette.color(for: state), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-            } else {
-                Circle()
-                    .stroke(GaugePalette.color(for: state), style: StrokeStyle(lineWidth: 2.4, lineCap: .round, dash: [2, 2]))
-            }
-        }
     }
 
     private var percentText: String {

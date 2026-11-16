@@ -1,7 +1,9 @@
 import Foundation
+import os
 
-/// Minimal rotating file log under `~/Library/Logs/AIUsageMonitor/`.
-/// Never logs credentials or provider response bodies.
+/// Minimal rotating file log under `~/Library/Logs/AIUsageMonitor/`,
+/// mirrored to the unified system log so diagnostics survive even when
+/// file writes fail. Never logs credentials or provider response bodies.
 final class RotatingFileLog: @unchecked Sendable {
     static let shared = RotatingFileLog()
 
@@ -10,6 +12,7 @@ final class RotatingFileLog: @unchecked Sendable {
     private let maximumBytes = 1_000_000
     private let backupCount = 2
     private let lock = NSLock()
+    private let osLog = Logger(subsystem: "com.gmalbert.aiusagemonitor", category: "app")
 
     init(directory: URL? = nil) {
         if let directory {
@@ -30,25 +33,29 @@ final class RotatingFileLog: @unchecked Sendable {
     private func append(_ level: String, _ message: String) {
         lock.lock()
         defer { lock.unlock() }
-        rotateIfNeeded()
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        let line = "\(formatter.string(from: Date())) \(level) \(message)\n"
-        let data = Data(line.utf8)
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            if let handle = try? FileHandle(forWritingTo: fileURL) {
-                defer { try? handle.close() }
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: data)
-                return
+        let line = "\(formatter.string(from: Date())) \(level) \(message)"
+        let data = Data((line + "\n").utf8)
+        do {
+            rotateIfNeeded()
+            if !FileManager.default.fileExists(atPath: fileURL.path) {
+                FileManager.default.createFile(atPath: fileURL.path, contents: nil)
             }
+            let handle = try FileHandle(forWritingTo: fileURL)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
+        } catch {
+            // The file write failed; the unified log below still records it.
+            osLog.error("file log write failed: \(String(describing: error), privacy: .public)")
         }
-        try? data.write(to: fileURL)
+        osLog.log("\(line, privacy: .public)")
     }
 
     private func rotateIfNeeded() {
         let fileManager = FileManager.default
-        guard let size = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size]) as? Int,
+        guard let size = (try? fileManager.attributesOfItem(atPath: fileURL.path))?[.size] as? Int,
               size > maximumBytes else {
             return
         }
