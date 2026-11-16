@@ -2,6 +2,18 @@
 
 Prepared November 15, 2026. This is a development handoff, not a claim that the app currently supports macOS.
 
+> **Status update (November 15, 2026):** the Mac implementation described in
+> this document is complete. `macos/` now contains the native SwiftUI
+> menu-bar app, the WidgetKit desktop widget, the Swift core port with
+> fixture-based tests, and the `build_macos.sh` build/sign/install script.
+> Baseline validation: Python suite 14/14 on this Mac (Python 3.12.16), core
+> Swift tests green via `swift test`, app live-refreshed all three providers
+> (CommandCode live, Codex live via the ChatGPT.app bundle binary, OpenCode
+> awaiting a Keychain key). Build with Xcode 27.2, deployment target macOS 14.
+> The App Group container requires a provisioned build (Xcode automatic
+> signing); without it, the widget falls back to the app's loopback-only
+> snapshot channel. See `macos/README.md`.
+
 ## Start here
 
 Continue development of AI Usage Monitor on a Mac by building a native menu-bar app while preserving the working Windows application. The existing plan favors SwiftUI `MenuBarExtra`; there is no Swift/Xcode project in this checkout yet. Use the Python implementation as the behavior and provider-contract reference.
