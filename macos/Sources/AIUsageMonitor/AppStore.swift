@@ -19,8 +19,12 @@ final class AppStore {
     private(set) var isRefreshing = false
     private(set) var lastRefreshedAt: Date?
     private(set) var opencodeKeyPresent: Bool
-    /// "app-group" when the widget reads the shared container, "loopback"
-    /// when the local HTTP fallback serves it instead.
+    /// True when the saved key was linked to this store's Keychain item, so
+    /// automatic refreshes may read it silently.
+    private(set) var opencodeKeyLinked: Bool
+    /// The channel the widget reads: "app-group" when provisioned,
+    /// "keychain" for entitled development-signed builds, "app-cache"
+    /// for local builds, "loopback" as the last resort.
     private(set) var snapshotChannel: String = "loopback"
     /// The Settings tab to show when the window opens.
     private(set) var settingsTab: SettingsTab = .general
@@ -46,12 +50,14 @@ final class AppStore {
         self.notifier = notifier
         self.log = log
         self.opencodeKeyPresent = keychain.hasKey
+        self.opencodeKeyLinked = keychain.isLinked
         let providers: [any UsageProvider] = [
             CommandCodeProvider(),
             OpenCodeGoProvider(keychain: keychain),
             CodexProvider(),
         ]
         self.service = service ?? UsageService(providers: providers)
+        log.info("Application started")
         Task {
             // Single-instance guard: if a sibling instance is already
             // serving the loopback endpoint, quit instead of stacking a
@@ -158,20 +164,23 @@ final class AppStore {
 
     private func publishSnapshot() {
         let snapshot = UsageSnapshot.make(from: values, settings: settings)
-        // Channel order: App Group container when the build is provisioned,
-        // then the shared Keychain item (works for development-signed
-        // builds without a provisioning profile), then the loopback server.
+        // Channel order: App Group container when provisioned, then the
+        // shared Keychain item (entitled development-signed builds), then a
+        // plain file next to the app's cache for local ad-hoc builds, then
+        // the loopback server.
         SnapshotServer.shared.update(snapshot)
         do {
             try SnapshotStore.save(snapshot)
             snapshotChannel = "app-group"
         } catch {
-            if SharedSnapshotStore.selfEntitled() {
-                snapshotChannel = SharedSnapshotStore.save(snapshot) ? "keychain" : "loopback"
+            if SharedSnapshotStore.selfEntitled(), SharedSnapshotStore.save(snapshot) {
+                snapshotChannel = "keychain"
+            } else if LocalCacheSnapshotStore.save(snapshot) {
+                snapshotChannel = "app-cache"
             } else {
-                // Without the entitlement the widget could only read this
-                // item through an ACL consent prompt; remove it so no
-                // prompt ever appears.
+                // Without the entitlement the widget could only read the
+                // keychain item through an ACL consent prompt; remove any
+                // stale item so no prompt can ever appear.
                 SharedSnapshotStore.delete()
                 snapshotChannel = "loopback"
             }
@@ -238,6 +247,7 @@ final class AppStore {
     func saveOpencodeKey(_ key: String) throws {
         try keychain.saveKey(key)
         opencodeKeyPresent = keychain.hasKey
+        opencodeKeyLinked = keychain.isLinked
         log.info("OpenCode Go key saved to Keychain")
         Task { await refresh() }
     }
@@ -245,6 +255,7 @@ final class AppStore {
     func removeOpencodeKey() {
         keychain.deleteKey()
         opencodeKeyPresent = keychain.hasKey
+        opencodeKeyLinked = keychain.isLinked
         log.info("OpenCode Go key removed from Keychain")
         Task { await refresh() }
     }
