@@ -143,7 +143,19 @@ final class CacheAndSettingsTests: XCTestCase {
 
     // MARK: - Keychain
 
+    /// The round-trip test writes to the login keychain, so it is skipped
+    /// when the keychain is locked: a write would make securityd display an
+    /// unlock prompt on the user's screen.
+    private var loginKeychainUnlocked: Bool {
+        var keychain: SecKeychain?
+        guard SecKeychainCopyDefault(&keychain) == errSecSuccess, let keychain else { return false }
+        var status: UInt32 = 0
+        guard SecKeychainGetStatus(keychain, &status) == errSecSuccess else { return false }
+        return status & 0x0001 != 0  // kSecUnlockStateStatus
+    }
+
     func testKeychainRoundTrip() throws {
+        try XCTSkipUnless(loginKeychainUnlocked, "login keychain is locked")
         let store = KeychainStore(service: "AIUsageMonitorTests", account: "test-\(UUID().uuidString)")
         XCTAssertNil(store.loadKey())
         try store.saveKey("  secret-key  ")

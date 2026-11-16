@@ -94,8 +94,9 @@ struct SnapshotTimelineProvider: TimelineProvider {
     }
 
     /// Channel order: the shared App Group container, then the shared
-    /// Keychain item (works for development-signed builds without a
-    /// provisioning profile), then the host app's loopback endpoint.
+    /// Keychain item (entitled development-signed builds), then a plain
+    /// file next to the app's cache (unsandboxed ad-hoc builds), then the
+    /// host app's loopback endpoint.
     private func loadSnapshot() async -> UsageSnapshot? {
         if let snapshot = SnapshotStore.load() {
             return snapshot
@@ -104,6 +105,9 @@ struct SnapshotTimelineProvider: TimelineProvider {
         // to its access group; an unauthorized read would trigger a keychain
         // ACL consent prompt on every refresh.
         if SharedSnapshotStore.selfEntitled(), let snapshot = SharedSnapshotStore.load() {
+            return snapshot
+        }
+        if let snapshot = LocalCacheSnapshotStore.load() {
             return snapshot
         }
         var request = URLRequest(url: LocalSnapshotSync.url)

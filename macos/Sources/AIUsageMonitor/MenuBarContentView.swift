@@ -32,7 +32,7 @@ struct MenuBarContentView: View {
                         }
                     }
                     if store.snapshotChannel == "loopback" {
-                        Text("Widget sync: local fallback (no App Group or Keychain)")
+                        Text("Widget sync: local fallback (no shared channel)")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                             .padding(.top, 4)

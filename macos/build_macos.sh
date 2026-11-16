@@ -2,21 +2,31 @@
 # Build, sign, and optionally install the AI Usage Monitor menu-bar app and
 # its widget extension.
 #
-# Signing happens in two modes, tried in order:
-#  1. Automatic signing with an Xcode account ("provisioned"): enables the
-#     App Group container so the widget can read live data. Requires an
-#     Apple ID signed into Xcode; xcodebuild downloads a team profile with
+# Signing happens in two modes:
+#  1. Automatic signing with an Xcode account ("--provisioned"): enables the
+#     App Group container so the widget can read live data through the
+#     standard channel. Requires an Apple ID signed into Xcode and an
+#     unlocked login keychain; xcodebuild downloads a team profile with
 #     -allowProvisioningUpdates.
-#  2. Manual signing with a local development identity or ad-hoc: works
-#     without an account, but macOS gates the widget data channels, so the
-#     widget shows its empty state.
+#  2. Local ad-hoc signing (default): works without an account and never
+#     touches the keychain. The widget reads data through a JSON file the
+#     app publishes inside the widget's own container.
 #
-# Usage: ./build_macos.sh [Debug|Release] [--install]
+# Usage: ./build_macos.sh [Debug|Release] [--install] [--provisioned]
 set -euo pipefail
 cd "$(dirname "$0")"
 
 CONFIGURATION="${1:-Debug}"
-INSTALL="${2:-}"
+MODE="${2:-}"
+INSTALL="${3:-}"
+
+# Automatic signing is only attempted with an explicit --provisioned flag:
+# on a machine with a locked login keychain (or no Xcode account) the
+# attempt opens keychain password prompts on the user's screen.
+PROVISIONED=0
+for arg in "$@"; do
+    [ "$arg" = "--provisioned" ] && PROVISIONED=1
+done
 
 if [ ! -d AIUsageMonitor.xcodeproj ]; then
     xcodegen generate --spec project.yml
@@ -37,7 +47,15 @@ build_unsigned() {
 sign_bundle() {
     local target="$1"
     local entitlements="$2"
-    codesign --force --sign "$3" --entitlements "$entitlements" "$target"
+    # Try the requested identity, but fall back to ad-hoc signing when it
+    # cannot be used — e.g. when the login keychain holding the identity's
+    # private key is locked. Ad-hoc ("Sign to Run Locally") is enough to run
+    # locally; the widget container-file channel does not depend on the
+    # signing identity.
+    if ! codesign --force --sign "$3" --entitlements "$entitlements" "$target" 2>/dev/null; then
+        echo "Signing with '$3' failed (locked keychain?); falling back to ad-hoc."
+        codesign --force --sign "-" --entitlements "$entitlements" "$target"
+    fi
 }
 
 build_provisioned() {
@@ -53,31 +71,27 @@ build_provisioned() {
     return 1
 }
 
-if build_provisioned && [ -d "$APP" ] && codesign --verify "$APP" 2>/dev/null; then
+if [ "$PROVISIONED" = "1" ] && build_provisioned && [ -d "$APP" ] && codesign --verify "$APP" 2>/dev/null; then
     echo "Built and signed with automatic provisioning: $APP"
 else
-    echo "Automatic signing unavailable; building unsigned and signing manually."
+    echo "Building with local signing (use --provisioned to try automatic signing with an Xcode account)."
     rm -rf "$APP"
     build_unsigned
     if [ ! -d "$APP" ]; then
         echo "Build product not found at $APP" >&2
         exit 1
     fi
-    # Prefer a real development identity when present so the App Group container
-    # ACL accepts the app; fall back to ad-hoc otherwise.
-    if security find-identity -v -p codesigning | grep -q "Apple Development"; then
-        IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Development" | head -1 | sed -E 's/.*"(.*)"/\1/')
-    else
-        IDENTITY="-"
-    fi
-    # Sign the embedded extension first, then the containing app.
-    sign_bundle "$WIDGET" UsageWidget.entitlements "$IDENTITY"
-    sign_bundle "$APP" AIUsageMonitor.entitlements "$IDENTITY"
+    # Always sign ad-hoc here: attempting to sign with a development identity
+    # reaches into the login keychain for its private key, which pops a
+    # password prompt whenever the keychain is locked — and the App Group
+    # channel only works for provisioned builds anyway.
+    sign_bundle "$WIDGET" UsageWidget.entitlements "-"
+    sign_bundle "$APP" AIUsageMonitor.entitlements "-"
     codesign --verify --deep "$APP"
-    echo "Built and signed ($IDENTITY): $APP"
+    echo "Built and signed (ad-hoc): $APP"
 fi
 
-if [ "$INSTALL" = "--install" ]; then
+if [ "$INSTALL" = "--install" ] || [ "$MODE" = "--install" ]; then
     rm -rf "/Applications/AI Usage Monitor.app"
     ditto "$APP" "/Applications/AI Usage Monitor.app"
     echo "Installed to /Applications"
