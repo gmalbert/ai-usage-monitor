@@ -23,9 +23,9 @@ final class AppStore {
     /// automatic refreshes may read it silently.
     private(set) var opencodeKeyLinked: Bool
     /// The channel the widget reads: "app-group" when provisioned,
-    /// "keychain" for entitled development-signed builds, "app-cache"
-    /// for local builds, "loopback" as the last resort.
-    private(set) var snapshotChannel: String = "loopback"
+    /// "keychain" for entitled development-signed builds, "shared-folder"
+    /// for local ad-hoc builds, "none" when nothing is reachable.
+    private(set) var snapshotChannel: String = "none"
     /// The Settings tab to show when the window opens.
     private(set) var settingsTab: SettingsTab = .general
 
@@ -165,27 +165,32 @@ final class AppStore {
     private func publishSnapshot() {
         let snapshot = UsageSnapshot.make(from: values, settings: settings)
         // Channel order: App Group container when provisioned, then the
-        // shared Keychain item (entitled development-signed builds), then a
-        // plain file next to the app's cache for local ad-hoc builds, then
-        // the loopback server.
+        // shared Keychain item (entitled development-signed builds), then
+        // the /Users/Shared file the sandboxed widget reads for local
+        // ad-hoc builds.
         SnapshotServer.shared.update(snapshot)
+        let channel: String
         do {
             try SnapshotStore.save(snapshot)
-            snapshotChannel = "app-group"
+            channel = "app-group"
         } catch {
             if SharedSnapshotStore.selfEntitled(), SharedSnapshotStore.save(snapshot) {
-                snapshotChannel = "keychain"
-            } else if LocalCacheSnapshotStore.save(snapshot) {
-                snapshotChannel = "app-cache"
+                channel = "keychain"
             } else {
                 // Without the entitlement the widget could only read the
                 // keychain item through an ACL consent prompt; remove any
                 // stale item so no prompt can ever appear.
                 SharedSnapshotStore.delete()
-                snapshotChannel = "loopback"
+                channel = SharedFolderSnapshotStore.save(snapshot) ? "shared-folder" : "none"
             }
         }
-        WidgetCenter.shared.reloadTimelines(ofKind: WidgetKinds.gauge)
+        if channel != snapshotChannel {
+            log.info("Widget snapshot channel: \(channel)")
+        }
+        snapshotChannel = channel
+        for kind in WidgetKinds.allGauges {
+            WidgetCenter.shared.reloadTimelines(ofKind: kind)
+        }
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetKinds.providers)
     }
 

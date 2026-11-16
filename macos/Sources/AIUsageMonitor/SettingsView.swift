@@ -185,15 +185,15 @@ private struct DiagnosticsSettingsTab: View {
                 case "keychain":
                     Label("Shared Keychain item", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
-                case "app-cache":
-                    Label("Snapshot file next to the app's cache", systemImage: "checkmark.circle.fill")
+                case "shared-folder":
+                    Label("Shared folder (/Users/Shared)", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 default:
-                    Label("Local fallback", systemImage: "arrow.triangle.2.circlepath")
+                    Label("No widget channel available", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
             }
-            Text("The widget reads the shared App Group container when your build is provisioned with one; entitled development-signed builds share through a Keychain item; local ad-hoc builds share a JSON file next to the app's cache; a localhost-only channel is the last resort. No Apple ID or provisioning is needed for local builds.")
+            Text("The widget reads the shared App Group container when your build is provisioned with one; entitled development-signed builds share through a Keychain item; local ad-hoc builds publish a JSON file to /Users/Shared that the sandboxed widget reads through a read-only exception. No Apple ID or provisioning is needed for local builds.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }

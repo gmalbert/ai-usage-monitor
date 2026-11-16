@@ -31,8 +31,8 @@ struct MenuBarContentView: View {
                             Divider().padding(.vertical, 2)
                         }
                     }
-                    if store.snapshotChannel == "loopback" {
-                        Text("Widget sync: local fallback (no shared channel)")
+                    if store.snapshotChannel == "none" {
+                        Text("Widget sync: no shared channel available")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                             .padding(.top, 4)

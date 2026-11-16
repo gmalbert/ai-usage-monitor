@@ -51,7 +51,7 @@ public struct SnapshotProvider: Codable, Equatable, Sendable {
 }
 
 public struct UsageSnapshot: Codable, Equatable, Sendable {
-    public static let schemaVersion = 1
+    public static let schemaVersion = 2
 
     public var schemaVersion: Int
     public var savedAt: Date
@@ -59,6 +59,10 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
     /// "normal", "warning", "critical", or "degraded".
     public var gaugeState: String
     public var lowestRemainingPercent: Double?
+    /// Thresholds from the app's settings, so a widget configured for a
+    /// single provider can color its gauge the same way the app does.
+    public var warningThreshold: Double
+    public var criticalThreshold: Double
     public var providers: [SnapshotProvider]
 
     public init(
@@ -67,6 +71,8 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
         refreshSeconds: Int,
         gaugeState: String,
         lowestRemainingPercent: Double?,
+        warningThreshold: Double = 50,
+        criticalThreshold: Double = 20,
         providers: [SnapshotProvider]
     ) {
         self.schemaVersion = schemaVersion
@@ -74,6 +80,8 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
         self.refreshSeconds = refreshSeconds
         self.gaugeState = gaugeState
         self.lowestRemainingPercent = lowestRemainingPercent
+        self.warningThreshold = warningThreshold
+        self.criticalThreshold = criticalThreshold
         self.providers = providers
     }
 
@@ -110,6 +118,8 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
             refreshSeconds: settings.refreshSeconds,
             gaugeState: Self.gaugeState(lowest: lowest, settings: settings),
             lowestRemainingPercent: lowest,
+            warningThreshold: settings.warningThreshold,
+            criticalThreshold: settings.criticalThreshold,
             providers: providers
         )
     }
@@ -132,7 +142,13 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
 /// Widget kinds shared by the host app (timeline reloads) and the extension.
 public enum WidgetKinds {
     public static let gauge = "com.gmalbert.aiusagemonitor.gauge"
+    public static let gaugeCommandCode = "com.gmalbert.aiusagemonitor.gauge.commandcode"
+    public static let gaugeCodex = "com.gmalbert.aiusagemonitor.gauge.codex"
+    public static let gaugeOpenCode = "com.gmalbert.aiusagemonitor.gauge.opencode"
     public static let providers = "com.gmalbert.aiusagemonitor.providers"
+
+    /// Every gauge kind, for timeline reloads after a refresh.
+    public static let allGauges = [gauge, gaugeCommandCode, gaugeCodex, gaugeOpenCode]
 }
 
 /// Loopback sync channel used when the App Group container is unavailable

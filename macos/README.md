@@ -16,7 +16,15 @@ secrets in files.
 - **Desktop widget** (macOS 15+ can pin widgets to the desktop; on macOS 14
   the same widgets appear in Notification Center):
   - *AI Usage Gauge* (small): circular gauge with the lowest remaining value.
-  - *AI Providers* (medium): per-provider bars for 5-hour, weekly, monthly.
+    There is one gauge per service — *AI Usage Gauge*, *AI Usage Gauge —
+    CommandCode*, *AI Usage Gauge — Codex*, and *AI Usage Gauge — OpenCode
+    Go* — so you can place several small gauges side by side, one per
+    provider. They are separate widget kinds rather than an App Intents
+    configuration option because macOS resolves intent parameters only for
+    extensions signed with a team identifier, which ad-hoc local builds do
+    not have.
+  - *AI Providers* (medium/large): per-provider bars for 5-hour, weekly, and
+    monthly, with a label row over the three columns.
 - Refresh at startup, every 5 minutes (configurable), manually, and after
   system wake. Provider fetches run concurrently; one provider failing never
   hides the others, and the last successful values are kept and marked stale.
@@ -76,13 +84,17 @@ works for the build (Settings → Diagnostics shows which one is active):
    with `--provisioned` and an Xcode account). The standard channel.
 2. **Shared Keychain item** — for development-signed (non-ad-hoc) builds
    entitled to the shared keychain access group.
-3. **App cache file** — for local ad-hoc builds, which have no App Group
+3. **Shared folder** — for local ad-hoc builds, which have no App Group
    provisioning and whose keychain access groups securityd cannot validate.
-   The app publishes the snapshot as JSON in its own cache directory
-   (`~/Library/Caches/AIUsageMonitor/usage-snapshot.json`), where the
-   widget — whose sandbox entitlement is inert under ad-hoc signing —
-   reads it directly.
-4. **Loopback-only HTTP** (`127.0.0.1:52317`) — last resort.
+   The app publishes the snapshot as JSON at
+   `/Users/Shared/AIUsageMonitor/usage-snapshot.json`, where the sandboxed
+   widget reads it through a read-only sandbox exception declared in
+   `UsageWidget.entitlements`.
+
+The widget's sandbox is enforced even for ad-hoc builds: it cannot read the
+real user home (its `homeDirectoryForCurrentUser` is its own container) and
+its sandbox profile denies outbound network connections, so neither a file in
+the app's cache directory nor the host app's loopback endpoint can serve it.
 
 Every channel carries usage percentages and reset times only; no
 credentials are ever included.
@@ -104,6 +116,21 @@ scheme. Regenerate the project after adding or removing source files:
 ```bash
 xcodegen generate --spec project.yml
 ```
+
+macOS caches each widget's descriptor (including its App Intents
+configuration) per extension build. After adding or changing a widget in the
+bundle, reinstall and restart the widget daemon so the new metadata is picked
+up — otherwise the gallery keeps showing the old widget set:
+
+```bash
+killall chronod
+```
+
+Widget configuration parameters (`AppIntentConfiguration`) do not work in
+these local builds: App Intents registers each intent with `linkd` under the
+signing team identifier, and an ad-hoc signature has none (`Unable to get
+teamId …`). That is why the per-provider gauges are separate widget kinds
+rather than a `Provider` parameter.
 
 ### Architecture
 

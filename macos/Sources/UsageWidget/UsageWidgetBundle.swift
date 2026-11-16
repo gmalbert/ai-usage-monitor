@@ -5,6 +5,9 @@ import SwiftUI
 struct UsageWidgetBundle: WidgetBundle {
     var body: some Widget {
         UsageGaugeWidget()
+        CommandCodeGaugeWidget()
+        CodexGaugeWidget()
+        OpenCodeGaugeWidget()
         UsageProvidersWidget()
     }
 }

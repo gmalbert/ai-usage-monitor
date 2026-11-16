@@ -6,6 +6,15 @@ import AIUsageMonitorCore
 struct UsageProvidersWidgetView: View {
     let entry: SnapshotEntry
 
+    private static let windowColumns: [(name: String, label: String)] = [
+        ("5-hour", "5-hour"),
+        ("Weekly", "Weekly"),
+        ("Monthly", "Monthly"),
+    ]
+    private static let nameColumnWidth: CGFloat = 86
+    private static let meterColumnWidth: CGFloat = 44
+    private static let columnSpacing: CGFloat = 6
+
     var body: some View {
         content
             .widgetURL(URL(string: "aiusagemonitor://details"))
@@ -16,6 +25,7 @@ struct UsageProvidersWidgetView: View {
         if let snapshot = entry.snapshot {
             VStack(alignment: .leading, spacing: 7) {
                 header(snapshot)
+                columnHeader
                 ForEach(snapshot.providers, id: \.key) { provider in
                     providerRow(provider)
                 }
@@ -49,10 +59,26 @@ struct UsageProvidersWidgetView: View {
         }
     }
 
+    /// Column labels aligned with the meter columns of every provider row.
+    private var columnHeader: some View {
+        HStack(spacing: Self.columnSpacing) {
+            Color.clear.frame(width: Self.nameColumnWidth, height: 1)
+            ForEach(Self.windowColumns, id: \.name) { column in
+                Text(column.label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(width: Self.meterColumnWidth, alignment: .leading)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
     @ViewBuilder
     private func providerRow(_ provider: SnapshotProvider) -> some View {
         if provider.windows.isEmpty {
-            HStack(spacing: 6) {
+            HStack(spacing: Self.columnSpacing) {
                 nameColumn(provider.name, stale: provider.stale)
                 Text(provider.statusMessage ?? "Unavailable")
                     .font(.system(size: 10))
@@ -61,10 +87,17 @@ struct UsageProvidersWidgetView: View {
                 Spacer(minLength: 0)
             }
         } else {
-            HStack(spacing: 6) {
+            HStack(spacing: Self.columnSpacing) {
                 nameColumn(provider.name, stale: provider.stale)
-                ForEach(Array(meters(provider).enumerated()), id: \.offset) { _, meter in
-                    meterBar(meter)
+                ForEach(Self.windowColumns, id: \.name) { column in
+                    if let window = provider.windows.first(where: { $0.name == column.name }) {
+                        meterBar(window)
+                    } else {
+                        // Keep the missing column's space so providers without
+                        // a window (for example Codex without a monthly limit)
+                        // stay aligned under the labels.
+                        Color.clear.frame(width: Self.meterColumnWidth, height: 1)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -80,12 +113,7 @@ struct UsageProvidersWidgetView: View {
                 .font(.system(size: 10, weight: .medium))
                 .lineLimit(1)
         }
-        .frame(width: 86, alignment: .leading)
-    }
-
-    private func meters(_ provider: SnapshotProvider) -> [SnapshotWindow] {
-        let preferred = ["5-hour", "Weekly", "Monthly"]
-        return preferred.compactMap { name in provider.windows.first { $0.name == name } }
+        .frame(width: Self.nameColumnWidth, alignment: .leading)
     }
 
     private func meterBar(_ window: SnapshotWindow) -> some View {
@@ -104,7 +132,7 @@ struct UsageProvidersWidgetView: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        .frame(width: 44)
+        .frame(width: Self.meterColumnWidth)
     }
 
     private func barColor(_ remaining: Double) -> Color {

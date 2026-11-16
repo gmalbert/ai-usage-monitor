@@ -116,7 +116,9 @@ final class CacheAndSettingsTests: XCTestCase {
         let data = try JSONEncoder.withISODates().encode(snapshot)
         let decoded = try JSONDecoder.withISODates().decode(UsageSnapshot.self, from: data)
         XCTAssertEqual(decoded, snapshot)
-        XCTAssertEqual(decoded.schemaVersion, 1)
+        XCTAssertEqual(decoded.schemaVersion, UsageSnapshot.schemaVersion)
+        XCTAssertEqual(decoded.warningThreshold, AppSettings().warningThreshold)
+        XCTAssertEqual(decoded.criticalThreshold, AppSettings().criticalThreshold)
     }
 
     func testSnapshotStoreRequiresEntitledAppGroup() throws {
@@ -141,7 +143,7 @@ final class CacheAndSettingsTests: XCTestCase {
         }
     }
 
-    func testLocalCacheSnapshotStoreRoundTrip() throws {
+    func testSharedFolderSnapshotStoreRoundTrip() throws {
         let values = [
             "commandcode": liveUsage(key: "commandcode", name: "CommandCode", fiveHour: 45),
         ]
@@ -151,16 +153,16 @@ final class CacheAndSettingsTests: XCTestCase {
             .appendingPathComponent("snapshot-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
 
-        XCTAssertTrue(LocalCacheSnapshotStore.save(snapshot, to: url))
-        let loaded = LocalCacheSnapshotStore.load(from: url)
+        XCTAssertTrue(SharedFolderSnapshotStore.save(snapshot, to: url))
+        let loaded = SharedFolderSnapshotStore.load(from: url)
         XCTAssertEqual(loaded, snapshot)
 
         try FileManager.default.removeItem(at: url)
-        XCTAssertNil(LocalCacheSnapshotStore.load(from: url))
+        XCTAssertNil(SharedFolderSnapshotStore.load(from: url))
 
         // Corrupt data decodes to nil instead of crashing the widget.
         try Data("not json".utf8).write(to: url)
-        XCTAssertNil(LocalCacheSnapshotStore.load(from: url))
+        XCTAssertNil(SharedFolderSnapshotStore.load(from: url))
     }
 
     // MARK: - Keychain
